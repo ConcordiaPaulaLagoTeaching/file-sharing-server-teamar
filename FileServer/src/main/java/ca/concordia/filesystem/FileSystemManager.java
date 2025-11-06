@@ -142,7 +142,91 @@ public class FileSystemManager {
         }
     }
 
-    // TODO: Add readFile, writeFile and other required methods,
+    /**
+     * Writes content to a file
+     * @param fileName name of the file to write to
+     * @param content content to write (text or bytes)
+     * @throws Exception if file doesn't exist or not enough space
+     */
+    public void writeFile(String fileName, String content) throws Exception {
+        globalLock.lock();
+        try {
+            // Find the file
+            int entryIndex = findFileByName(fileName);
+            if (entryIndex == -1) {
+                throw new Exception("ERROR: file " + fileName + " does not exist");
+            }
+            
+            FEntry entry = fileEntries[entryIndex];
+            byte[] contentBytes = content.getBytes();
+            int contentSize = contentBytes.length;
+            
+            // Calculate number of blocks needed
+            int blocksNeeded = (contentSize + BLOCK_SIZE - 1) / BLOCK_SIZE;
+            
+            // First, free existing blocks if any
+            if (entry.getFirstBlock() != -1) {
+                int currentBlock = entry.getFirstBlock();
+                while (currentBlock != -1) {
+                    FNode node = fileNodes[currentBlock];
+                    int nextBlock = node.getNext();
+                    
+                    freeBlockList[currentBlock] = true;
+                    node.setBlockIndex(-currentBlock);
+                    node.setNext(-1);
+                    
+                    currentBlock = nextBlock;
+                }
+                entry.setFilesize((short) 0);
+            }
+            
+            // Check if we have enough free blocks
+            int availableBlocks = 0;
+            for (int i = 0; i < MAXBLOCKS; i++) {
+                if (freeBlockList[i]) availableBlocks++;
+            }
+            
+            if (availableBlocks < blocksNeeded) {
+                throw new Exception("ERROR: file too large");
+            }
+            
+            // Allocate blocks and write content
+            int previousBlock = -1;
+            int firstBlock = -1;
+            int bytesWritten = 0;
+            
+            for (int i = 0; i < blocksNeeded; i++) {
+                int blockIndex = findAvailableBlock();
+                if (blockIndex == -1) {
+                    throw new Exception("ERROR: file too large");
+                }
+                
+                // Mark block as in use
+                freeBlockList[blockIndex] = false;
+                fileNodes[blockIndex].setBlockIndex(blockIndex);
+                
+                // Link blocks
+                if (i == 0) {
+                    firstBlock = blockIndex;
+                } else {
+                    fileNodes[previousBlock].setNext(blockIndex);
+                }
+                
+                previousBlock = blockIndex;
+            }
+            
+            // Update file entry
+            if (firstBlock != -1) {
+                FEntry newEntry = new FEntry(fileName, (short) contentSize, (short) firstBlock);
+                fileEntries[entryIndex] = newEntry;
+            }
+            
+        } finally {
+            globalLock.unlock();
+        }
+    }
+
+    // TODO: Add readFile method
     
     /**
      * Finds the first available file entry slot
