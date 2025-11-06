@@ -36,19 +36,71 @@ public class FileServer {
                         String[] parts = line.split(" ");
                         String command = parts[0].toUpperCase();
 
-                        switch (command) {
-                            case "CREATE":
-                                fsManager.createFile(parts[1]);
-                                writer.println("SUCCESS: File '" + parts[1] + "' created.");
-                                writer.flush();
-                                break;
-                            //TODO: Implement other commands READ, WRITE, DELETE, LIST
-                            case "QUIT":
-                                writer.println("SUCCESS: Disconnecting.");
-                                return;
-                            default:
-                                writer.println("ERROR: Unknown command.");
-                                break;
+                        try {
+                            switch (command) {
+                                case "CREATE":
+                                    if (parts.length < 2) {
+                                        writer.println("ERROR: CREATE requires a filename");
+                                        break;
+                                    }
+                                    fsManager.createFile(parts[1]);
+                                    writer.println("SUCCESS: File '" + parts[1] + "' created.");
+                                    writer.flush();
+                                    break;
+                                    
+                                case "DELETE":
+                                    if (parts.length < 2) {
+                                        writer.println("ERROR: DELETE requires a filename");
+                                        break;
+                                    }
+                                    fsManager.deleteFile(parts[1]);
+                                    writer.println("SUCCESS: File '" + parts[1] + "' deleted.");
+                                    writer.flush();
+                                    break;
+                                    
+                                case "READ":
+                                    if (parts.length < 2) {
+                                        writer.println("ERROR: READ requires a filename");
+                                        break;
+                                    }
+                                    String content = fsManager.readFile(parts[1]);
+                                    writer.println("SUCCESS: " + content);
+                                    writer.flush();
+                                    break;
+                                    
+                                case "WRITE":
+                                    if (parts.length < 3) {
+                                        writer.println("ERROR: WRITE requires filename and content");
+                                        break;
+                                    }
+                                    // Reconstruct content from remaining parts
+                                    StringBuilder writeContent = new StringBuilder();
+                                    for (int i = 2; i < parts.length; i++) {
+                                        if (i > 2) writeContent.append(" ");
+                                        writeContent.append(parts[i]);
+                                    }
+                                    fsManager.writeFile(parts[1], writeContent.toString());
+                                    writer.println("SUCCESS: File '" + parts[1] + "' written.");
+                                    writer.flush();
+                                    break;
+                                    
+                                case "LIST":
+                                    String fileList = fsManager.listFiles();
+                                    writer.println("SUCCESS: " + fileList);
+                                    writer.flush();
+                                    break;
+                                    
+                                case "QUIT":
+                                    writer.println("SUCCESS: Disconnecting.");
+                                    return;
+                                    
+                                default:
+                                    writer.println("ERROR: Unknown command.");
+                                    break;
+                            }
+                        } catch (Exception cmdException) {
+                            writer.println(cmdException.getMessage());
+                            writer.flush();
                         }
                     }
                 } catch (Exception e) {
