@@ -46,9 +46,36 @@ public class FileSystemManager {
         }
     }
 
+    /**
+     * Creates a new empty file with the given filename
+     * @param fileName name of the file to create (max 11 characters)
+     * @throws Exception if filename is too long, file already exists, or no space available
+     */
     public void createFile(String fileName) throws Exception {
-        // TODO
-        throw new UnsupportedOperationException("Method not implemented yet.");
+        globalLock.lock();
+        try {
+            // Check filename length
+            if (fileName.length() > 11) {
+                throw new Exception("ERROR: filename too large");
+            }
+            
+            // Check if file already exists
+            if (findFileByName(fileName) != -1) {
+                throw new Exception("ERROR: file already exists");
+            }
+            
+            // Find available file entry
+            int entryIndex = findAvailableFileEntry();
+            if (entryIndex == -1) {
+                throw new Exception("ERROR: maximum number of files reached");
+            }
+            
+            // Create new file entry with no blocks allocated initially (empty file)
+            fileEntries[entryIndex] = new FEntry(fileName, (short) 0, (short) -1);
+            
+        } finally {
+            globalLock.unlock();
+        }
     }
 
 
