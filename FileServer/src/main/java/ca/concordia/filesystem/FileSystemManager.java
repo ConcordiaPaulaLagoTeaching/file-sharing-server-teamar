@@ -118,6 +118,30 @@ public class FileSystemManager {
         }
     }
 
+    /**
+     * Lists all files in the file system
+     * @return String containing all filenames separated by newlines
+     */
+    public String listFiles() {
+        globalLock.lock();
+        try {
+            StringBuilder fileList = new StringBuilder();
+            for (int i = 0; i < MAXFILES; i++) {
+                if (fileEntries[i] != null) {
+                    fileList.append(fileEntries[i].getFilename()).append("\n");
+                }
+            }
+            
+            if (fileList.length() == 0) {
+                return "No files in the system";
+            }
+            
+            return fileList.toString();
+        } finally {
+            globalLock.unlock();
+        }
+    }
+
     // TODO: Add readFile, writeFile and other required methods,
     
     /**
