@@ -9,4 +9,29 @@ public class FNode {
         this.blockIndex = blockIndex;
         this.next = -1;
     }
+
+    // Getters and Setters
+    public int getBlockIndex() {
+        return blockIndex;
+    }
+
+    public void setBlockIndex(int blockIndex) {
+        this.blockIndex = blockIndex;
+    }
+
+    public int getNext() {
+        return next;
+    }
+
+    public void setNext(int next) {
+        this.next = next;
+    }
+    
+    /**
+     * Checks if this FNode is in use
+     * @return true if the block index is non-negative (in use), false otherwise
+     */
+    public boolean isInUse() {
+        return blockIndex >= 0;
+    }
 }
