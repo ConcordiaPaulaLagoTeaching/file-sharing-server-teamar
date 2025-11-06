@@ -53,4 +53,44 @@ public class FileSystemManager {
 
 
     // TODO: Add readFile, writeFile and other required methods,
+    
+    /**
+     * Finds the first available file entry slot
+     * @return index of available file entry, or -1 if none available
+     */
+    private int findAvailableFileEntry() {
+        for (int i = 0; i < MAXFILES; i++) {
+            if (fileEntries[i] == null) {
+                return i;
+            }
+        }
+        return -1; // No available file entry
+    }
+    
+    /**
+     * Finds a file entry by filename
+     * @param filename the name of the file to find
+     * @return index of the file entry, or -1 if not found
+     */
+    private int findFileByName(String filename) {
+        for (int i = 0; i < MAXFILES; i++) {
+            if (fileEntries[i] != null && fileEntries[i].getFilename().equals(filename)) {
+                return i;
+            }
+        }
+        return -1; // File not found
+    }
+    
+    /**
+     * Finds the first available file node (free block)
+     * @return index of available file node, or -1 if none available
+     */
+    private int findAvailableBlock() {
+        for (int i = 0; i < MAXBLOCKS; i++) {
+            if (freeBlockList[i]) {
+                return i;
+            }
+        }
+        return -1; // No available blocks
+    }
 }
