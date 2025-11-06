@@ -78,6 +78,45 @@ public class FileSystemManager {
         }
     }
 
+    /**
+     * Deletes a file with the given filename
+     * @param fileName name of the file to delete
+     * @throws Exception if file does not exist
+     */
+    public void deleteFile(String fileName) throws Exception {
+        globalLock.lock();
+        try {
+            // Find the file
+            int entryIndex = findFileByName(fileName);
+            if (entryIndex == -1) {
+                throw new Exception("ERROR: file " + fileName + " does not exist");
+            }
+            
+            FEntry entry = fileEntries[entryIndex];
+            
+            // Free all blocks used by this file
+            if (entry.getFirstBlock() != -1) {
+                int currentBlock = entry.getFirstBlock();
+                while (currentBlock != -1) {
+                    FNode node = fileNodes[currentBlock];
+                    int nextBlock = node.getNext();
+                    
+                    // Mark block as free
+                    freeBlockList[currentBlock] = true;
+                    node.setBlockIndex(-currentBlock);
+                    node.setNext(-1);
+                    
+                    currentBlock = nextBlock;
+                }
+            }
+            
+            // Remove file entry
+            fileEntries[entryIndex] = null;
+            
+        } finally {
+            globalLock.unlock();
+        }
+    }
 
     // TODO: Add readFile, writeFile and other required methods,
     
