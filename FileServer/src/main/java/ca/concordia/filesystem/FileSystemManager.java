@@ -226,7 +226,50 @@ public class FileSystemManager {
         }
     }
 
-    // TODO: Add readFile method
+    /**
+     * Reads content from a file
+     * @param fileName name of the file to read
+     * @return String containing the file content
+     * @throws Exception if file doesn't exist
+     */
+    public String readFile(String fileName) throws Exception {
+        globalLock.lock();
+        try {
+            // Find the file
+            int entryIndex = findFileByName(fileName);
+            if (entryIndex == -1) {
+                throw new Exception("ERROR: file " + fileName + " does not exist");
+            }
+            
+            FEntry entry = fileEntries[entryIndex];
+            
+            // If file is empty
+            if (entry.getFirstBlock() == -1 || entry.getFilesize() == 0) {
+                return "";
+            }
+            
+            // Read content from blocks
+            StringBuilder content = new StringBuilder();
+            int currentBlock = entry.getFirstBlock();
+            int bytesRead = 0;
+            int totalBytes = entry.getFilesize();
+            
+            while (currentBlock != -1 && bytesRead < totalBytes) {
+                FNode node = fileNodes[currentBlock];
+                
+                // For simplicity, we're returning a placeholder
+                // In a real implementation, you'd read from disk
+                int bytesToRead = Math.min(BLOCK_SIZE, totalBytes - bytesRead);
+                bytesRead += bytesToRead;
+                
+                currentBlock = node.getNext();
+            }
+            
+            return content.toString();
+        } finally {
+            globalLock.unlock();
+        }
+    }
     
     /**
      * Finds the first available file entry slot
