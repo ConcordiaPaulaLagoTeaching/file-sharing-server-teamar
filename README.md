@@ -1,34 +1,8 @@
-# File Sharing Server - COEN 346 Programming Assignment 2
+[![Review Assignment Due Date](https://classroom.github.com/assets/deadline-readme-button-22041afd0340ce965d47ae6ef1cefeee28c7c493a6346c4f15d667ab976d596c.svg)](https://classroom.github.com/a/wZsoNm5d)
+# File Sharing System 
 
-## Project Description
-A file-sharing server simulator that enables multiple users to access and share files from a central location. The server implements a simulated file system with support for concurrent reads and exclusive writes.
+In this project, you will be developing a file-sharing server. A file share server is a computer or server that enables multiple users on a network to access and share files and folders in a central location. It allows users to access files on various devices. You will create a server file system simulator to store all the files created by clients. 
 
-## Team Members
-- Team AR
 
-## Project Structure
-```
-src/
-  ├── FEntry.java       - File entry metadata structure
-  ├── FNode.java        - File node structure for data blocks
-  └── FileSystem.java   - Main file system implementation
-```
-
-## File System Configuration
-- **Block Size**: 128 bytes
-- **Maximum Files**: 4
-- **Maximum Blocks**: 6
-
-## Implementation Progress
-- [x] Basic data structures (FEntry, FNode)
-- [ ] File system operations (create, delete, write, read, list)
-- [ ] Server/client architecture
-- [ ] Multithreading support
-- [ ] Synchronization for concurrent access
-
-## Building and Running
-*Instructions to be added as implementation progresses*
-
-## References
-Based on CSC209 programming assignment by Prof. Kianoosh Abassi and Andreas Bergen, University of Toronto.
+This repository contains two projects: the client and the server. You only need to modify the server. 
 
