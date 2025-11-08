@@ -212,6 +212,16 @@ public class FileSystemManager {
                     fileNodes[previousBlock].setNext(blockIndex);
                 }
                 
+                // Write content to disk
+                int bytesToWrite = Math.min(BLOCK_SIZE, contentSize - bytesWritten);
+                byte[] blockData = new byte[BLOCK_SIZE];
+                System.arraycopy(contentBytes, bytesWritten, blockData, 0, bytesToWrite);
+                
+                // Write to disk at block position
+                disk.seek(blockIndex * BLOCK_SIZE);
+                disk.write(blockData);
+                bytesWritten += bytesToWrite;
+                
                 previousBlock = blockIndex;
             }
             
@@ -249,23 +259,29 @@ public class FileSystemManager {
             }
             
             // Read content from blocks
-            StringBuilder content = new StringBuilder();
+            int totalBytes = entry.getFilesize();
+            byte[] fileContent = new byte[totalBytes];
             int currentBlock = entry.getFirstBlock();
             int bytesRead = 0;
-            int totalBytes = entry.getFilesize();
             
             while (currentBlock != -1 && bytesRead < totalBytes) {
                 FNode node = fileNodes[currentBlock];
                 
-                // For simplicity, we're returning a placeholder
-                // In a real implementation, you'd read from disk
+                // Read from disk at block position
                 int bytesToRead = Math.min(BLOCK_SIZE, totalBytes - bytesRead);
+                byte[] blockData = new byte[BLOCK_SIZE];
+                
+                disk.seek(currentBlock * BLOCK_SIZE);
+                disk.read(blockData);
+                
+                // Copy only the needed bytes
+                System.arraycopy(blockData, 0, fileContent, bytesRead, bytesToRead);
                 bytesRead += bytesToRead;
                 
                 currentBlock = node.getNext();
             }
             
-            return content.toString();
+            return new String(fileContent);
         } finally {
             globalLock.unlock();
         }
