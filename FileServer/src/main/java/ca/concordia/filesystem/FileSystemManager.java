@@ -7,38 +7,87 @@ import java.io.File;
 import java.io.RandomAccessFile;
 import java.util.concurrent.locks.ReentrantLock;
 
+/**
+ * FileSystemManager - Core file system implementation that manages file operations
+ * and block allocation.
+ * 
+ * This class simulates a simple file system with:
+ * - Fixed number of file entries (like an inode table)
+ * - Block-based storage with linked list allocation
+ * - Persistent storage using RandomAccessFile
+ * - Thread-safe operations using locks
+ * 
+ * File System Structure:
+ * - Maximum 5 files (MAXFILES)
+ * - 10 blocks of 128 bytes each (MAXBLOCKS * BLOCK_SIZE = 1280 bytes total)
+ * - Files can span multiple blocks using a linked list structure
+ * - Free block bitmap tracks available blocks
+ * 
+ * @author Aryan Aggarwal (40215476)
+ * @version 1.0
+ */
 public class FileSystemManager {
 
+    /** Maximum number of files that can be stored in the file system */
     private final int MAXFILES = 5;
+    
+    /** Maximum number of blocks available for file storage */
     private final int MAXBLOCKS = 10;
+    
+    /** RandomAccessFile handle for persistent disk storage */
     private RandomAccessFile disk;
+    
+    /** Global lock to ensure thread-safe file system operations */
     private final ReentrantLock globalLock = new ReentrantLock();
 
-    private static final int BLOCK_SIZE = 128; // Block size in bytes
+    /** Size of each block in bytes (128 bytes per block) */
+    private static final int BLOCK_SIZE = 128;
 
-    private FEntry[] fileEntries; // Array of file entries
-    private FNode[] fileNodes; // Array of file nodes
-    private boolean[] freeBlockList; // Bitmap for free blocks
+    /** Array of file entries containing metadata for each file */
+    private FEntry[] fileEntries;
+    
+    /** Array of file nodes representing blocks in the file system */
+    private FNode[] fileNodes;
+    
+    /** Bitmap tracking which blocks are free (true) or in use (false) */
+    private boolean[] freeBlockList;
 
+    /**
+     * Constructs a new FileSystemManager and initializes the file system structures.
+     * 
+     * This constructor:
+     * 1. Creates or opens the disk file for persistent storage
+     * 2. Initializes file entry table (like inodes)
+     * 3. Initializes block nodes for linked list allocation
+     * 4. Sets up free block bitmap
+     * 
+     * @param filename The name of the file to store file system data (e.g., "filesystem.dat")
+     * @param totalSize The total size of the file system in bytes (not currently enforced)
+     * @throws RuntimeException if the file system cannot be initialized
+     */
     public FileSystemManager(String filename, int totalSize) {
         try {
-            // Create or open the file system file
+            // Create or open the RandomAccessFile for persistent storage
             File fsFile = new File(filename);
             this.disk = new RandomAccessFile(fsFile, "rw");
             
-            // Initialize file entries array
+            // Initialize the file entries array (file metadata table)
+            // Initially all entries are null (no files exist)
             this.fileEntries = new FEntry[MAXFILES];
             
-            // Initialize file nodes array
+            // Initialize file nodes (blocks) for storage
+            // Each FNode represents one block in the file system
             this.fileNodes = new FNode[MAXBLOCKS];
             for (int i = 0; i < MAXBLOCKS; i++) {
-                fileNodes[i] = new FNode(-i); // Negative indicates not in use
+                // Negative blockIndex indicates the block is not in use
+                fileNodes[i] = new FNode(-i);
             }
             
-            // Initialize free block list
+            // Initialize the free block bitmap
+            // true = block is free, false = block is in use
             this.freeBlockList = new boolean[MAXBLOCKS];
             for (int i = 0; i < MAXBLOCKS; i++) {
-                freeBlockList[i] = true; // All blocks initially free
+                freeBlockList[i] = true; // All blocks start as free
             }
             
         } catch (Exception e) {
@@ -47,30 +96,37 @@ public class FileSystemManager {
     }
 
     /**
-     * Creates a new empty file with the given filename
-     * @param fileName name of the file to create (max 11 characters)
-     * @throws Exception if filename is too long, file already exists, or no space available
+     * Creates a new empty file with the given filename.
+     * 
+     * The file is initially created with no blocks allocated (size = 0).
+     * Blocks will be allocated when content is written using writeFile().
+     * 
+     * @param fileName Name of the file to create (maximum 11 characters)
+     * @throws Exception if:
+     *         - filename exceeds 11 characters
+     *         - file already exists
+     *         - maximum number of files (5) has been reached
      */
     public void createFile(String fileName) throws Exception {
         globalLock.lock();
         try {
-            // Check filename length
+            // Validate filename length (11 characters max)
             if (fileName.length() > 11) {
                 throw new Exception("ERROR: filename too large");
             }
             
-            // Check if file already exists
+            // Check for duplicate files
             if (findFileByName(fileName) != -1) {
                 throw new Exception("ERROR: file already exists");
             }
             
-            // Find available file entry
+            // Find an available slot in the file entry table
             int entryIndex = findAvailableFileEntry();
             if (entryIndex == -1) {
                 throw new Exception("ERROR: maximum number of files reached");
             }
             
-            // Create new file entry with no blocks allocated initially (empty file)
+            // Create new file entry: filename, size=0, firstBlock=-1 (no blocks yet)
             fileEntries[entryIndex] = new FEntry(fileName, (short) 0, (short) -1);
             
         } finally {
@@ -143,15 +199,25 @@ public class FileSystemManager {
     }
 
     /**
-     * Writes content to a file
-     * @param fileName name of the file to write to
-     * @param content content to write (text or bytes)
-     * @throws Exception if file doesn't exist or not enough space
+     * Writes content to an existing file, overwriting any previous content.
+     * 
+     * This method:
+     * 1. Frees all blocks currently used by the file
+     * 2. Calculates how many blocks are needed for the new content
+     * 3. Allocates new blocks and links them together
+     * 4. Writes the content to disk across multiple blocks if needed
+     * 5. Updates the file entry with new size and first block pointer
+     * 
+     * @param fileName Name of the file to write to
+     * @param content The text content to write to the file
+     * @throws Exception if:
+     *         - file does not exist
+     *         - content is too large (not enough free blocks)
      */
     public void writeFile(String fileName, String content) throws Exception {
         globalLock.lock();
         try {
-            // Find the file
+            // Find the file entry
             int entryIndex = findFileByName(fileName);
             if (entryIndex == -1) {
                 throw new Exception("ERROR: file " + fileName + " does not exist");
@@ -161,18 +227,20 @@ public class FileSystemManager {
             byte[] contentBytes = content.getBytes();
             int contentSize = contentBytes.length;
             
-            // Calculate number of blocks needed
+            // Calculate how many blocks we need
+            // Each block is 128 bytes, so we divide and round up
             int blocksNeeded = (contentSize + BLOCK_SIZE - 1) / BLOCK_SIZE;
             
-            // First, free existing blocks if any
+            // Free all existing blocks used by this file (if any)
             if (entry.getFirstBlock() != -1) {
                 int currentBlock = entry.getFirstBlock();
                 while (currentBlock != -1) {
                     FNode node = fileNodes[currentBlock];
                     int nextBlock = node.getNext();
                     
+                    // Mark block as free
                     freeBlockList[currentBlock] = true;
-                    node.setBlockIndex(-currentBlock);
+                    node.setBlockIndex(-currentBlock); // Negative indicates free
                     node.setNext(-1);
                     
                     currentBlock = nextBlock;
@@ -180,7 +248,7 @@ public class FileSystemManager {
                 entry.setFilesize((short) 0);
             }
             
-            // Check if we have enough free blocks
+            // Check if we have enough free blocks for the new content
             int availableBlocks = 0;
             for (int i = 0; i < MAXBLOCKS; i++) {
                 if (freeBlockList[i]) availableBlocks++;
@@ -190,34 +258,36 @@ public class FileSystemManager {
                 throw new Exception("ERROR: file too large");
             }
             
-            // Allocate blocks and write content
+            // Allocate blocks and write content to disk
             int previousBlock = -1;
             int firstBlock = -1;
             int bytesWritten = 0;
             
             for (int i = 0; i < blocksNeeded; i++) {
+                // Find the next available block
                 int blockIndex = findAvailableBlock();
                 if (blockIndex == -1) {
                     throw new Exception("ERROR: file too large");
                 }
                 
-                // Mark block as in use
+                // Mark this block as in use
                 freeBlockList[blockIndex] = false;
                 fileNodes[blockIndex].setBlockIndex(blockIndex);
                 
-                // Link blocks
+                // Link blocks together (form a linked list)
                 if (i == 0) {
-                    firstBlock = blockIndex;
+                    firstBlock = blockIndex; // Remember the first block
                 } else {
-                    fileNodes[previousBlock].setNext(blockIndex);
+                    fileNodes[previousBlock].setNext(blockIndex); // Link previous block to this one
                 }
                 
-                // Write content to disk
+                // Prepare data for this block
                 int bytesToWrite = Math.min(BLOCK_SIZE, contentSize - bytesWritten);
                 byte[] blockData = new byte[BLOCK_SIZE];
                 System.arraycopy(contentBytes, bytesWritten, blockData, 0, bytesToWrite);
                 
-                // Write to disk at block position
+                // Write data to disk at the block's position
+                // Block position = blockIndex * BLOCK_SIZE
                 disk.seek(blockIndex * BLOCK_SIZE);
                 disk.write(blockData);
                 bytesWritten += bytesToWrite;
@@ -225,7 +295,7 @@ public class FileSystemManager {
                 previousBlock = blockIndex;
             }
             
-            // Update file entry
+            // Update the file entry with new size and first block pointer
             if (firstBlock != -1) {
                 FEntry newEntry = new FEntry(fileName, (short) contentSize, (short) firstBlock);
                 fileEntries[entryIndex] = newEntry;
@@ -237,15 +307,23 @@ public class FileSystemManager {
     }
 
     /**
-     * Reads content from a file
-     * @param fileName name of the file to read
-     * @return String containing the file content
-     * @throws Exception if file doesn't exist
+     * Reads and returns the content of a file.
+     * 
+     * This method:
+     * 1. Finds the file in the file entry table
+     * 2. Follows the linked list of blocks
+     * 3. Reads data from each block on disk
+     * 4. Assembles the complete file content
+     * 5. Converts bytes to a string and returns it
+     * 
+     * @param fileName Name of the file to read
+     * @return String containing the complete file content
+     * @throws Exception if file does not exist
      */
     public String readFile(String fileName) throws Exception {
         globalLock.lock();
         try {
-            // Find the file
+            // Find the file entry
             int entryIndex = findFileByName(fileName);
             if (entryIndex == -1) {
                 throw new Exception("ERROR: file " + fileName + " does not exist");
@@ -253,34 +331,38 @@ public class FileSystemManager {
             
             FEntry entry = fileEntries[entryIndex];
             
-            // If file is empty
+            // Handle empty files
             if (entry.getFirstBlock() == -1 || entry.getFilesize() == 0) {
                 return "";
             }
             
-            // Read content from blocks
+            // Read content from all blocks in the linked list
             int totalBytes = entry.getFilesize();
-            byte[] fileContent = new byte[totalBytes];
+            byte[] fileContent = new byte[totalBytes]; // Buffer to hold complete file
             int currentBlock = entry.getFirstBlock();
             int bytesRead = 0;
             
+            // Traverse the linked list of blocks
             while (currentBlock != -1 && bytesRead < totalBytes) {
                 FNode node = fileNodes[currentBlock];
                 
-                // Read from disk at block position
+                // Determine how many bytes to read from this block
                 int bytesToRead = Math.min(BLOCK_SIZE, totalBytes - bytesRead);
                 byte[] blockData = new byte[BLOCK_SIZE];
                 
+                // Read block from disk
                 disk.seek(currentBlock * BLOCK_SIZE);
                 disk.read(blockData);
                 
-                // Copy only the needed bytes
+                // Copy the relevant bytes into our file content buffer
                 System.arraycopy(blockData, 0, fileContent, bytesRead, bytesToRead);
                 bytesRead += bytesToRead;
                 
+                // Move to the next block in the chain
                 currentBlock = node.getNext();
             }
             
+            // Convert bytes to string and return
             return new String(fileContent);
         } finally {
             globalLock.unlock();
