@@ -1,0 +1,14 @@
+Author Information
+==================
+
+Name: Aryan Aggarwal
+Student ID: 40215476
+
+Contributions:
+- File system data structures implementation (FEntry, FNode)
+- FileSystemManager core functionality
+- File operations: createFile(), deleteFile(), readFile(), writeFile(), listFiles()
+- Server command handling for all file operations
+- Helper methods for file entry and block management
+- Error handling and validation
+
