@@ -5,17 +5,18 @@ import ca.concordia.filesystem.datastructures.FNode;
 
 import java.io.File;
 import java.io.RandomAccessFile;
-import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
  * FileSystemManager - Core file system implementation that manages file operations
- * and block allocation.
+ * and block allocation with readers-writers synchronization.
  * 
  * This class simulates a simple file system with:
  * - Fixed number of file entries (like an inode table)
  * - Block-based storage with linked list allocation
  * - Persistent storage using RandomAccessFile
- * - Thread-safe operations using locks
+ * - Thread-safe operations using ReadWriteLock
  * 
  * File System Structure:
  * - Maximum 5 files (MAXFILES)
@@ -23,8 +24,15 @@ import java.util.concurrent.locks.ReentrantLock;
  * - Files can span multiple blocks using a linked list structure
  * - Free block bitmap tracks available blocks
  * 
+ * Synchronization Strategy (Readers-Writers):
+ * - READ and LIST operations acquire read lock (multiple concurrent readers allowed)
+ * - CREATE, WRITE, DELETE operations acquire write lock (exclusive access)
+ * - When a writer has the lock, no readers or other writers can proceed
+ * - Multiple readers can read concurrently without blocking each other
+ * - This prevents race conditions while maximizing concurrency for read operations
+ * 
  * @author Aryan Aggarwal (40215476)
- * @version 1.0
+ * @version 2.0
  */
 public class FileSystemManager {
 
@@ -37,8 +45,12 @@ public class FileSystemManager {
     /** RandomAccessFile handle for persistent disk storage */
     private RandomAccessFile disk;
     
-    /** Global lock to ensure thread-safe file system operations */
-    private final ReentrantLock globalLock = new ReentrantLock();
+    /** 
+     * ReadWriteLock for readers-writers synchronization
+     * - Allows multiple concurrent readers (READ, LIST operations)
+     * - Ensures exclusive access for writers (CREATE, WRITE, DELETE operations)
+     */
+    private final ReadWriteLock rwLock = new ReentrantReadWriteLock();
 
     /** Size of each block in bytes (128 bytes per block) */
     private static final int BLOCK_SIZE = 128;
@@ -108,7 +120,7 @@ public class FileSystemManager {
      *         - maximum number of files (5) has been reached
      */
     public void createFile(String fileName) throws Exception {
-        globalLock.lock();
+        rwLock.writeLock().lock();  // Acquire write lock (exclusive access)
         try {
             // Validate filename length (11 characters max)
             if (fileName.length() > 11) {
@@ -130,7 +142,7 @@ public class FileSystemManager {
             fileEntries[entryIndex] = new FEntry(fileName, (short) 0, (short) -1);
             
         } finally {
-            globalLock.unlock();
+            rwLock.writeLock().unlock();  // Release write lock
         }
     }
 
@@ -140,7 +152,7 @@ public class FileSystemManager {
      * @throws Exception if file does not exist
      */
     public void deleteFile(String fileName) throws Exception {
-        globalLock.lock();
+        rwLock.writeLock().lock();  // Acquire write lock (exclusive access)
         try {
             // Find the file
             int entryIndex = findFileByName(fileName);
@@ -170,16 +182,20 @@ public class FileSystemManager {
             fileEntries[entryIndex] = null;
             
         } finally {
-            globalLock.unlock();
+            rwLock.writeLock().unlock();  // Release write lock
         }
     }
 
     /**
-     * Lists all files in the file system
+     * Lists all files in the file system.
+     * 
+     * This is a READ operation that uses the read lock, allowing
+     * multiple clients to list files concurrently.
+     * 
      * @return String containing all filenames separated by newlines
      */
     public String listFiles() {
-        globalLock.lock();
+        rwLock.readLock().lock();  // Acquire read lock (shared access)
         try {
             StringBuilder fileList = new StringBuilder();
             for (int i = 0; i < MAXFILES; i++) {
@@ -194,7 +210,7 @@ public class FileSystemManager {
             
             return fileList.toString();
         } finally {
-            globalLock.unlock();
+            rwLock.readLock().unlock();  // Release read lock
         }
     }
 
@@ -215,7 +231,7 @@ public class FileSystemManager {
      *         - content is too large (not enough free blocks)
      */
     public void writeFile(String fileName, String content) throws Exception {
-        globalLock.lock();
+        rwLock.writeLock().lock();  // Acquire write lock (exclusive access)
         try {
             // Find the file entry
             int entryIndex = findFileByName(fileName);
@@ -302,12 +318,15 @@ public class FileSystemManager {
             }
             
         } finally {
-            globalLock.unlock();
+            rwLock.writeLock().unlock();  // Release write lock
         }
     }
 
     /**
      * Reads and returns the content of a file.
+     * 
+     * This is a READ operation that uses the read lock, allowing
+     * multiple clients to read files concurrently without blocking each other.
      * 
      * This method:
      * 1. Finds the file in the file entry table
@@ -321,7 +340,7 @@ public class FileSystemManager {
      * @throws Exception if file does not exist
      */
     public String readFile(String fileName) throws Exception {
-        globalLock.lock();
+        rwLock.readLock().lock();  // Acquire read lock (shared access)
         try {
             // Find the file entry
             int entryIndex = findFileByName(fileName);
@@ -365,7 +384,7 @@ public class FileSystemManager {
             // Convert bytes to string and return
             return new String(fileContent);
         } finally {
-            globalLock.unlock();
+            rwLock.readLock().unlock();  // Release read lock
         }
     }
     
