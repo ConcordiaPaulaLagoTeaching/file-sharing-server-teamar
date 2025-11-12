@@ -99,32 +99,44 @@ public class ServerTests {
 
     @Test
     public void testMalformedInputDoesNotCrashServer() throws Exception {
+        // Test 1: Invalid command
         try (Socket socket = new Socket("localhost", SERVER_PORT)) {
             PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
             BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 
-            // Send malformed commands
             out.println("INVALID_COMMAND");
             String response1 = in.readLine();
             assertNotNull(response1, "Server should respond to invalid command");
             assertTrue(response1.contains("ERROR") || response1.contains("Unknown"), 
-                      "Should get error response");
+                      "Should get error response for invalid command");
+            
+            out.println("QUIT");
+        }
 
-            // Send command with missing parameters
+        // Test 2: Missing parameters - use new connection
+        try (Socket socket = new Socket("localhost", SERVER_PORT)) {
+            PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+            BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+
             out.println("CREATE");
             String response2 = in.readLine();
             assertNotNull(response2, "Server should respond to incomplete command");
             assertTrue(response2.contains("ERROR"), "Should get error for missing parameter");
+            
+            out.println("QUIT");
+        }
 
-            // Send empty command
-            out.println("");
-            // Server might close connection or send error - either is acceptable
+        // Test 3: Server still works after errors - use new connection
+        try (Socket socket = new Socket("localhost", SERVER_PORT)) {
+            PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+            BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 
-            // Verify server still works with valid command
             out.println("LIST");
             String response3 = in.readLine();
             assertNotNull(response3, "Server should still respond after malformed input");
-            assertTrue(response3.startsWith("SUCCESS"), "Server should still work after errors");
+            assertTrue(response3.startsWith("SUCCESS"), "Server should still work after previous errors");
+            
+            out.println("QUIT");
         }
     }
 
