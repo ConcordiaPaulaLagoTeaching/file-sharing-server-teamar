@@ -23,8 +23,8 @@ jobs:
       uses: classroom-resources/autograding-command-grader@v1
       with:
         test-name: Create File Test
-        setup-command: 'cd FileServer'
-        command: mvn -Dtest=FileSystemTests#testCreateFile test
+        setup-command: ''
+        command: cd FileServer && mvn -Dtest=FileSystemTests#testCreateFile test
         timeout: 1
         max-score: 5
     - name: Write and Read Long Test
@@ -32,8 +32,8 @@ jobs:
       uses: classroom-resources/autograding-command-grader@v1
       with:
         test-name: Write and Read Long Test
-        setup-command: 'cd FileServer'
-        command: mvn -Dtest=FileSystemTests#testWriteAndReadLongFile test
+        setup-command: ''
+        command: cd FileServer && mvn -Dtest=FileSystemTests#testWriteAndReadLongFile test
         timeout: 1
         max-score: 5
     - name: Write and Read Test
@@ -41,8 +41,8 @@ jobs:
       uses: classroom-resources/autograding-command-grader@v1
       with:
         test-name: Write and Read Test
-        setup-command: 'cd FileServer'
-        command: mvn -Dtest=FileSystemTests#testWriteAndReadFile test
+        setup-command: ''
+        command: cd FileServer && mvn -Dtest=FileSystemTests#testWriteAndReadFile test
         timeout: 1
         max-score: 5
     - name: Test CreateLongName
@@ -50,8 +50,8 @@ jobs:
       uses: classroom-resources/autograding-command-grader@v1
       with:
         test-name: Test CreateLongName
-        setup-command: 'cd FileServer'
-        command: mvn -Dtest=FileSystemTests#testTooLongFilename test
+        setup-command: ''
+        command: cd FileServer && mvn -Dtest=FileSystemTests#testTooLongFilename test
         timeout: 1
         max-score: 5
     - name: Delete File
@@ -59,8 +59,8 @@ jobs:
       uses: classroom-resources/autograding-command-grader@v1
       with:
         test-name: Delete File
-        setup-command: 'cd FileServer'
-        command: mvn -Dtest=FileSystemTests#testDeleteFile test
+        setup-command: ''
+        command: cd FileServer && mvn -Dtest=FileSystemTests#testDeleteFile test
         timeout: 1
         max-score: 5
     - name: Server handles 1000 clients
@@ -68,8 +68,8 @@ jobs:
       uses: classroom-resources/autograding-command-grader@v1
       with:
         test-name: Server handles 1000 clients
-        setup-command: 'cd FileServer'
-        command: mvn -Dtest=ServerTests#testHandlesHundredsOfClientsQuickly test
+        setup-command: ''
+        command: cd FileServer && mvn -Dtest=ServerTests#testHandlesHundredsOfClientsQuickly test
         timeout: 5
         max-score: 7
     - name: Server Malformed Input
@@ -77,8 +77,8 @@ jobs:
       uses: classroom-resources/autograding-command-grader@v1
       with:
         test-name: Server Malformed Input
-        setup-command: 'cd FileServer'
-        command: mvn -Dtest=ServerTests#testMalformedInputDoesNotCrashServer test
+        setup-command: ''
+        command: cd FileServer && mvn -Dtest=ServerTests#testMalformedInputDoesNotCrashServer test
         timeout: 1
         max-score: 5
     - name: Server handles 1000 clients (duplicate)
@@ -86,8 +86,8 @@ jobs:
       uses: classroom-resources/autograding-command-grader@v1
       with:
         test-name: Server handles 1000 clients
-        setup-command: 'cd FileServer'
-        command: mvn -Dtest=ServerTests#testHandlesHundredsOfClientsQuickly test
+        setup-command: ''
+        command: cd FileServer && mvn -Dtest=ServerTests#testHandlesHundredsOfClientsQuickly test
         timeout: 5
         max-score: 5
     - name: Restart Persistence
@@ -95,8 +95,8 @@ jobs:
       uses: classroom-resources/autograding-command-grader@v1
       with:
         test-name: Restart Persistence
-        setup-command: 'cd FileServer'
-        command: mvn -Dtest=ServerTests#testServerRestartPersistence test
+        setup-command: ''
+        command: cd FileServer && mvn -Dtest=ServerTests#testServerRestartPersistence test
         timeout: 10
         max-score: 8
     - name: Autograding Reporter
