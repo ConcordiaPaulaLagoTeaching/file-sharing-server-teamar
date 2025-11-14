@@ -12,3 +12,12 @@ Contributions:
 - Helper methods for file entry and block management
 - Error handling and validation
 
+Name: Thien An Nguyen
+Student ID: 40298238
+
+Contributions:
+
+-Oversaw the project development and ensured all requirements were properly met
+-Improved documentation clarity and structure across the codebase
+-Reviewed and double-checked major components for correctness and alignment with project specifications
+-Assisted in maintaining clean architecture and coherent workflow
