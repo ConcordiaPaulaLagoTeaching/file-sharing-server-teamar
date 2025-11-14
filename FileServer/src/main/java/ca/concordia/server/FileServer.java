@@ -136,21 +136,28 @@ public class FileServer {
                 String command = parts[0].toUpperCase();
 
                 try {
-                    // Process the command using a switch statement
+                    // Process the command using a switch statement for efficient command routing
+                    // Each case handles a specific file operation with proper validation and error handling
                     switch (command) {
                         case "CREATE":
-                            // CREATE <filename> - Creates a new empty file
+                            // CREATE <filename> - Creates a new empty file in the file system
+                            // Validation: Ensures filename is provided
+                            // Constraints: Max 5 files, filename ≤ 11 characters
                             if (parts.length < 2) {
                                 writer.println("ERROR: CREATE requires a filename");
                                 break;
                             }
+                            // Delegate to FileSystemManager with write lock for thread safety
                             fsManager.createFile(parts[1]);
                             writer.println("SUCCESS: File '" + parts[1] + "' created.");
-                            writer.flush();
+                            writer.flush(); // Ensure immediate response to client
                             break;
                             
                         case "DELETE":
-                            // DELETE <filename> - Deletes an existing file and frees its blocks
+                            // DELETE <filename> - Permanently removes a file and frees all its allocated blocks
+                            // Security: Validates filename parameter to prevent malformed requests
+                            // Performance: Uses write lock to ensure exclusive access during deletion
+                            // Memory Management: Automatically frees blocks back to the free block list
                             if (parts.length < 2) {
                                 writer.println("ERROR: DELETE requires a filename");
                                 break;
@@ -161,14 +168,17 @@ public class FileServer {
                             break;
                             
                         case "READ":
-                            // READ <filename> - Reads and returns the content of a file
+                            // READ <filename> - Retrieves and returns the complete content of a file
+                            // Concurrency: Uses read lock allowing multiple simultaneous readers
+                            // Performance: Efficiently traverses linked list of blocks
+                            // Data Integrity: Guarantees consistent read even during concurrent operations
                             if (parts.length < 2) {
                                 writer.println("ERROR: READ requires a filename");
                                 break;
                             }
                             String content = fsManager.readFile(parts[1]);
                             writer.println("SUCCESS: " + content);
-                            writer.flush();
+                            writer.flush(); // Send response immediately to minimize client wait time
                             break;
                             
                         case "WRITE":
